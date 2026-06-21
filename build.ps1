@@ -1,7 +1,7 @@
 #requires -version 5
 <#
 .SYNOPSIS
-  Build (and optionally publish/run) AutoVRVD. Locates a .NET 8 SDK automatically.
+  Build (and optionally publish/run) VirtualMirage. Locates a .NET 8 SDK automatically.
 .EXAMPLE
   .\build.ps1            # Release build
   .\build.ps1 -Publish   # single-folder publish to .\publish
@@ -15,7 +15,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSCommandPath
-$proj = Join-Path $root 'src\AutoVRVD\AutoVRVD.csproj'
+$proj = Join-Path $root 'src\VirtualMirage\VirtualMirage.csproj'
 
 function Get-Dotnet {
     $candidates = @(
@@ -47,7 +47,7 @@ else {
 }
 
 if ($Run) {
-    $exe = Join-Path $root "src\AutoVRVD\bin\$Configuration\net8.0-windows\AutoVRVD.exe"
+    $exe = Join-Path $root "src\VirtualMirage\bin\$Configuration\net8.0-windows\VirtualMirage.exe"
     if (Test-Path $exe) { Start-Process $exe; Write-Host "Launched $exe" }
     else { Write-Warning "Executable not found at $exe" }
 }

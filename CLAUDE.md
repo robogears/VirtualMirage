@@ -1,10 +1,10 @@
-# CLAUDE.md — AutoVRVD
+# CLAUDE.md — VirtualMirage
 
 Guidance for working in this repo. Read this first.
 
 ## What this is
 
-**AutoVRVD** is a Windows **system-tray app** (C# / .NET 8 / WinForms) that auto-creates a
+**VirtualMirage** is a Windows **system-tray app** (C# / .NET 8 / WinForms) that auto-creates a
 **4K (3840×2160) @ 120 Hz virtual display** when the user connects to the PC in VR through
 **Virtual Desktop**, makes it the sole primary display, disables the physical monitors, and
 **restores everything exactly** on disconnect. It lets the user play flat games at 4K120 on a
@@ -27,32 +27,32 @@ End-user docs live in [README.md](README.md). This file is for developers/agents
 .\build.ps1 -Publish              # framework-dependent publish -> .\publish
 .\build.ps1 -Run                  # build + launch
 # or directly:
-& "$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe" build src\AutoVRVD\AutoVRVD.csproj -c Release
+& "$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe" build src\VirtualMirage\VirtualMirage.csproj -c Release
 ```
 
 - Target: `net8.0-windows`, x64, `WinExe` (no console), `AllowUnsafeBlocks`, nullable + implicit usings on.
 - **No external NuGet dependencies** — custom logger, `System.Text.Json`, and P/Invoke only. Keep it that way (hermetic build).
-- Output: `src\AutoVRVD\bin\<Config>\net8.0-windows\AutoVRVD.exe`.
+- Output: `src\VirtualMirage\bin\<Config>\net8.0-windows\VirtualMirage.exe`.
 
 ## Testing (do this instead of clicking the tray)
 
 There is **no headset in the dev environment**, so most behavior is validated through headless
-CLI self-test modes that log to `%AppData%\AutoVRVD\logs`. Prefer these; read the log to verify.
+CLI self-test modes that log to `%AppData%\VirtualMirage\logs`. Prefer these; read the log to verify.
 **CLI flags are dispatched in `Program.Main` BEFORE the tray/session/orchestrator are constructed**;
 each one exits immediately after running (the tray never launches — this is by design for headless
 testing).
 
 ```powershell
-AutoVRVD.exe --selftest-vda          # SAFE: create 4K120 display, confirm, remove (no topology change)
-AutoVRVD.exe --selftest-restore      # SAFE: snapshot topology + re-apply unchanged (validates CCD)
-AutoVRVD.exe --selftest-fullcycle    # DISRUPTIVE: full activate -> 4s -> restore (monitors go DARK)
-AutoVRVD.exe --diag-enforce          # DISRUPTIVE (~7s): activate sole 4K, force 1440p to simulate VD,
+VirtualMirage.exe --selftest-vda          # SAFE: create 4K120 display, confirm, remove (no topology change)
+VirtualMirage.exe --selftest-restore      # SAFE: snapshot topology + re-apply unchanged (validates CCD)
+VirtualMirage.exe --selftest-fullcycle    # DISRUPTIVE: full activate -> 4s -> restore (monitors go DARK)
+VirtualMirage.exe --diag-enforce          # DISRUPTIVE (~7s): activate sole 4K, force 1440p to simulate VD,
                                      #   confirm the session mode-enforcer restores 4K
-AutoVRVD.exe --diag-restore          # MILD: perturb a monitor (60Hz + primary), confirm RestorePhysicalModes
+VirtualMirage.exe --diag-restore          # MILD: perturb a monitor (60Hz + primary), confirm RestorePhysicalModes
                                      #   snaps refresh+primary back (needs physical monitors active, i.e. NOT in VR)
-AutoVRVD.exe --diagnose [seconds]    # detection calibration capture (needs the user's headset)
-AutoVRVD.exe --selftest-settings     # construct the settings form (catches layout exceptions)
-AutoVRVD.exe --selftest-update       # run an update-check and log the result (no download/apply)
+VirtualMirage.exe --diagnose [seconds]    # detection calibration capture (needs the user's headset)
+VirtualMirage.exe --selftest-settings     # construct the settings form (catches layout exceptions)
+VirtualMirage.exe --selftest-update       # run an update-check and log the result (no download/apply)
 ```
 
 ⚠️ **`--selftest-fullcycle` and `--diag-enforce` black out / reconfigure all physical monitors for
@@ -77,15 +77,15 @@ Multiple virtual monitors can coexist, so identify them by EDID name in the log:
 Flow: **detector → orchestrator → session → (SUDOVDA + display topology)**.
 
 ```
-src/AutoVRVD/
+src/VirtualMirage/
   Program.cs                 Entry point. CLI selftest/diag branches (BEFORE the tray), single-instance
-                             mutex (Local\AutoVRVD_SingleInstance), DPI/visual-styles, builds & wires
+                             mutex (Local\VirtualMirage_SingleInstance), DPI/visual-styles, builds & wires
                              tray + session + orchestrator + UpdateController. Calls RecoverIfNeeded()
                              BEFORE the detector starts. Manual tray activate/deactivate run on Task.Run.
-  Config.cs                  Config/ResolutionConfig/DetectionConfig; JSON at %AppData%\AutoVRVD\config.json.
+  Config.cs                  Config/ResolutionConfig/DetectionConfig; JSON at %AppData%\VirtualMirage\config.json.
                              EnsureDefaults() mints a stable MonitorGuid on first run. UpdateCheckOnLaunch
                              (bool, default true).
-  Paths.cs                   %AppData%\AutoVRVD paths (AppDir, LogsDir, ConfigPath, StatePath).
+  Paths.cs                   %AppData%\VirtualMirage paths (AppDir, LogsDir, ConfigPath, StatePath).
   Logging.cs                 `Log` static (file + in-memory ring; daily rotation). No NuGet.
   Autostart.cs               HKCU\...\Run toggle (no admin): IsEnabled()/Set(enabled).
   Orchestrator.cs            State machine: detector events -> session Activate/Deactivate, gated by
@@ -154,7 +154,7 @@ src/AutoVRVD/
                              Restarting); StartLaunchCheckAsync(). Private _gate.
 ```
 
-Data/runtime files (all under `%AppData%\AutoVRVD\`): `config.json`, `logs\autovrvd-*.log`,
+Data/runtime files (all under `%AppData%\VirtualMirage\`): `config.json`, `logs\virtualmirage-*.log`,
 `logs\diagnostics-*.log`, `session.state.json` (present only while a session is active / after a crash).
 
 ## Critical constraints & gotchas (read before changing display or driver code)
@@ -295,25 +295,25 @@ This is the current top open item. Not yet fixed.
 ## Shipping & self-update
 
 The global specs in `Z:\global .md\` (`ship.md`, `updater.md`) are the authority for the process;
-this repo implements the .NET equivalents. **Repo:** `robogears/AutomaticVRVDCreator`
-(https://github.com/robogears/AutomaticVRVDCreator — **exists, public**, origin set, `gh` authed as
-`robogears`). **Assets:** `AutoVRVD-Setup.exe` (Inno Setup installer — **primary**; the updater matches
-the substring `Setup.exe`, don't break it) + `AutoVRVD-win-x64.exe` (portable single-file, secondary).
+this repo implements the .NET equivalents. **Repo:** `robogears/VirtualMirage`
+(https://github.com/robogears/VirtualMirage — **exists, public**, origin set, `gh` authed as
+`robogears`). **Assets:** `VirtualMirage-Setup.exe` (Inno Setup installer — **primary**; the updater matches
+the substring `Setup.exe`, don't break it) + `VirtualMirage-win-x64.exe` (portable single-file, secondary).
 
-**Installer** (`installer/AutoVRVD.iss`, Inno Setup 6): **per-machine** install to `{autopf}\AutoVRVD`
+**Installer** (`installer/VirtualMirage.iss`, Inno Setup 6): **per-machine** install to `{autopf}\VirtualMirage`
 (`PrivilegesRequired=admin`), Start Menu + optional desktop shortcut, ARP/uninstaller, `CloseApplications`
 to close the running tray app before replacing files. Autostart is a per-user HKCU "Run" value written
-by running `{app}\AutoVRVD.exe --set-autostart` **as the signed-in user** (`runasoriginaluser`, fresh
+by running `{app}\VirtualMirage.exe --set-autostart` **as the signed-in user** (`runasoriginaluser`, fresh
 install only — `Check: not WizardSilent`), so it lands in the user's hive not the elevated admin's. The
 silent (auto-update) path relaunches de-elevated via a `Check: WizardSilent` `[Run]`. Built locally with
-`ISCC.exe /DAppVersion=<v> installer\AutoVRVD.iss` (ISCC at `%LocalAppData%\Programs\Inno Setup 6\`,
-installed user-scope via winget) → `installer-out\AutoVRVD-Setup.exe`. CI builds it on the runner via
+`ISCC.exe /DAppVersion=<v> installer\VirtualMirage.iss` (ISCC at `%LocalAppData%\Programs\Inno Setup 6\`,
+installed user-scope via winget) → `installer-out\VirtualMirage-Setup.exe`. CI builds it on the runner via
 `choco install innosetup`.
 
 **In-app updater** (`Update/`): `Updater.cs` polls `releases/latest`, compares the assembly version to
 the tag (numeric semver, e.g. `0.1.10 > 0.1.2`), **matches the asset whose name contains `Setup.exe`**
 (case-insensitive) and downloads it — or, if no match / not Windows (`CanSelfInstall()` false),
-**opens the release page in the browser**. Download goes to `%TEMP%\AutoVRVD-update-{ts}.exe`;
+**opens the release page in the browser**. Download goes to `%TEMP%\VirtualMirage-update-{ts}.exe`;
 `ApplyUpdate` **runs that installer `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART`** (the per-machine setup
 auto-elevates via UAC, `CloseApplications` closes the app, installs to Program Files, relaunches
 de-elevated) and the app calls `Application.Exit()` **only if the launch succeeded** (UAC declined ->
@@ -326,7 +326,7 @@ default true — only surfaces a balloon if an update is available). The `Owner`
 asset is.
 
 **Ship process — NEVER auto-ship; only on explicit "ship it / release vX.Y.Z".** Follow `ship.md`:
-1. Bump `<Version>` in `src/AutoVRVD/AutoVRVD.csproj` (patch by default). This is the **current**
+1. Bump `<Version>` in `src/VirtualMirage/VirtualMirage.csproj` (patch by default). This is the **current**
    version for local builds; **CI is the authority** — `release.yml` extracts the version FROM the tag
    (`v0.1.1` → `0.1.1`) and passes it via `-p:Version=` on publish, so the shipped exe's version ==
    the tag (the updater relies on this).
@@ -334,7 +334,7 @@ asset is.
    (What's new / `---` / Install + Requirements / `---` / Full Changelog compare link). No old sections.
 3. `git add` explicitly, commit, `git tag -a vX.Y.Z -m vX.Y.Z`, push main, push the tag.
 4. The tag (matching `v*`) triggers `.github/workflows/release.yml` → builds the single-file exe
-   (`AutoVRVD-win-x64.exe`) → builds the Inno Setup installer (`AutoVRVD-Setup.exe`, via
+   (`VirtualMirage-win-x64.exe`) → builds the Inno Setup installer (`VirtualMirage-Setup.exe`, via
    `choco install innosetup` + ISCC) → attaches **both** to a release created with **`draft: true`** via
    `softprops/action-gh-release@v2` (`body_path: RELEASE_NOTES.md`).
 5. Run `.\ship-tail.ps1 vX.Y.Z` — waits for CI, **verifies the release body** (softprops sometimes
@@ -345,16 +345,16 @@ asset is.
    `draft` in the workflow, and **never auto-publish a draft**.
 
 **v0.1.1 is the first release** (commit `289cadf`): pushed, CI green, draft release created with asset
-`AutoVRVD-win-x64.exe` and body from `RELEASE_NOTES.md` — **left as a DRAFT for the user to publish**.
+`VirtualMirage-win-x64.exe` and body from `RELEASE_NOTES.md` — **left as a DRAFT for the user to publish**.
 
 ## Status (2026-06-22)
 
 - **Shipped & published v0.1.1 → v0.1.2 → v0.1.3 → v0.1.4** on the public repo. **v0.1.4 = the
-  installer milestone + a real app icon.** AutoVRVD now ships as `AutoVRVD-Setup.exe` (Inno Setup,
+  installer milestone + a real app icon.** VirtualMirage now ships as `VirtualMirage-Setup.exe` (Inno Setup,
   per-machine), the in-app updater applies updates by running that setup silently, and the app has a
-  procedurally-drawn VR-headset **logo** (`UI/IconArt.cs` → committed `src/AutoVRVD/AutoVRVD.ico`,
+  procedurally-drawn VR-headset **logo** (`UI/IconArt.cs` → committed `src/VirtualMirage/VirtualMirage.ico`,
   wired via `<ApplicationIcon>` + Inno `SetupIconFile`; the tray icon is the logo badged with a
-  status dot). Regenerate the .ico with `AutoVRVD.exe --make-icon <path>` (also emits preview/montage
+  status dot). Regenerate the .ico with `VirtualMirage.exe --make-icon <path>` (also emits preview/montage
   PNGs, which are git-ignored).
 - **v0.1.3 fixes the in-app updater** (it stuck on "Downloading 100%" — download now on a worker
   thread + state-guarded progress).

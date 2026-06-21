@@ -16,6 +16,6 @@ installer-out/
 # Local artifacts
 *.log
 
-# Icon dev-preview artifacts (the committed source asset is AutoVRVD.ico)
-src/AutoVRVD/*.preview.png
-src/AutoVRVD/*.montage.png
+# Icon dev-preview artifacts (the committed source asset is VirtualMirage.ico)
+src/VirtualMirage/*.preview.png
+src/VirtualMirage/*.montage.png

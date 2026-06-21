@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <AssemblyName>VirtualMirage</AssemblyName>
+    <RootNamespace>VirtualMirage</RootNamespace>
+    <Version>0.1.5</Version>
+    <Company>VirtualMirage</Company>
+    <Product>VirtualMirage</Product>
+
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>VirtualMirage.ico</ApplicationIcon>
+
+    <!-- DPI is configured explicitly in Program.Main (SetHighDpiMode), so the
+         WinForms source generator must not also emit it. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+</Project>

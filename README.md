@@ -1,4 +1,4 @@
-# AutoVRVD — Automatic VR Virtual Display Creator
+# VirtualMirage — Automatic VR Virtual Display Creator
 
 A lightweight Windows tray app that detects when you connect to your PC in VR through
 **Virtual Desktop**, and automatically:
@@ -29,23 +29,23 @@ display changes are made in your interactive session.
 
 ## Install
 
-**Recommended — run the installer:** download **`AutoVRVD-Setup.exe`** from the
-[Releases page](https://github.com/robogears/AutomaticVRVDCreator/releases) and run it. It installs to
-`C:\Program Files\AutoVRVD`, adds a Start Menu shortcut and an Add/Remove Programs entry, optionally
+**Recommended — run the installer:** download **`VirtualMirage-Setup.exe`** from the
+[Releases page](https://github.com/robogears/VirtualMirage/releases) and run it. It installs to
+`C:\Program Files\VirtualMirage`, adds a Start Menu shortcut and an Add/Remove Programs entry, optionally
 starts at sign-in, and launches. (Per-machine install, so it asks for admin once. SmartScreen may warn
 on the unsigned build: **More info → Run anyway**.) Future updates are delivered through the same
 installer automatically — tray → **Update available… → Restart to apply** (one UAC confirm).
 
-**Portable alternative:** `AutoVRVD-win-x64.exe` is also attached to each release — a self-contained
+**Portable alternative:** `VirtualMirage-win-x64.exe` is also attached to each release — a self-contained
 single exe you can run from anywhere (no install, no auto-update).
 
 **Build from source:**
 ```powershell
 .\build.ps1                 # Release build (see "Building" for the SDK)
-.\src\AutoVRVD\bin\Release\net8.0-windows\AutoVRVD.exe
+.\src\VirtualMirage\bin\Release\net8.0-windows\VirtualMirage.exe
 # or build the installer locally (needs Inno Setup):
 .\build.ps1 -Publish
-& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DAppVersion=0.0.0 installer\AutoVRVD.iss
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DAppVersion=0.0.0 installer\VirtualMirage.iss
 ```
 
 Then **calibrate detection once with your headset** (see below), and you're done. Start-at-sign-in is
@@ -65,7 +65,7 @@ Right-click the tray icon:
 | **Remove virtual display now** | Restore your desktop and remove the virtual display. |
 | **Run detection diagnostics…** | 60-second calibration capture — see below. |
 | **Settings…** | Resolution/refresh, detection mode, debounce, Apollo guard, start-with-Windows. |
-| **Open logs folder** | `%AppData%\AutoVRVD\logs`. |
+| **Open logs folder** | `%AppData%\VirtualMirage\logs`. |
 | **Quit** | Exits (restores your desktop first if a session is active). |
 
 The tray icon color shows state: gray = idle, blue = VR connected, green = virtual display
@@ -76,10 +76,10 @@ active, red = error.
 Detecting "am I connected in VR via Virtual Desktop" is the one part that varies per setup,
 so calibrate it once:
 
-1. Tray → **Run detection diagnostics…** (or run `AutoVRVD.exe --diagnose 60`).
+1. Tray → **Run detection diagnostics…** (or run `VirtualMirage.exe --diagnose 60`).
 2. Within the 60-second window: **connect your headset** via Virtual Desktop, wait ~10s,
    then **disconnect**.
-3. The report opens automatically (also in `%AppData%\AutoVRVD\logs\diagnostics-*.log`).
+3. The report opens automatically (also in `%AppData%\VirtualMirage\logs\diagnostics-*.log`).
    Look at the `>>> raw active changed` lines and the columns:
    - if **lanPeers** shows an address when connected → **ports** mode works,
    - if **eventPulse** flips to `1` when connected → **event** mode works,
@@ -105,14 +105,14 @@ Two layers, mirroring Apollo's proven design:
   only as a fallback; it silently no-ops on Windows 11 24H2.)
 
 Crash safety = two independent nets: the SUDOVDA **watchdog** (auto-removes an orphaned
-display) plus a **persisted snapshot** (`%AppData%\AutoVRVD\session.state.json`) that is
+display) plus a **persisted snapshot** (`%AppData%\VirtualMirage\session.state.json`) that is
 restored on next launch if the app died mid-session.
 
 ---
 
 ## Configuration
 
-`%AppData%\AutoVRVD\config.json` (editable by hand; Settings… edits the common ones):
+`%AppData%\VirtualMirage\config.json` (editable by hand; Settings… edits the common ones):
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -134,12 +134,12 @@ restored on next launch if the app died mid-session.
 ## CLI / diagnostics
 
 ```powershell
-AutoVRVD.exe --diagnose [seconds]     # detection calibration capture (default 60s)
-AutoVRVD.exe --selftest-vda           # create a 4K120 display, confirm, remove (non-disruptive)
-AutoVRVD.exe --selftest-restore       # snapshot + re-apply topology unchanged (safe)
-AutoVRVD.exe --selftest-fullcycle     # full activate→restore (DISRUPTIVE: monitors go dark ~4s)
+VirtualMirage.exe --diagnose [seconds]     # detection calibration capture (default 60s)
+VirtualMirage.exe --selftest-vda           # create a 4K120 display, confirm, remove (non-disruptive)
+VirtualMirage.exe --selftest-restore       # snapshot + re-apply topology unchanged (safe)
+VirtualMirage.exe --selftest-fullcycle     # full activate→restore (DISRUPTIVE: monitors go dark ~4s)
 ```
-All write to `%AppData%\AutoVRVD\logs`.
+All write to `%AppData%\VirtualMirage\logs`.
 
 ---
 
@@ -148,7 +148,7 @@ All write to `%AppData%\AutoVRVD\logs`.
 - **It doesn't switch when I connect in VR.** Run detection diagnostics with your headset and
   set the Detection Mode to whichever signal fires (`ports` or `event`). Check the Streamer is
   running and is ≥ 1.30.
-- **Screens didn't come back after a crash.** Relaunch AutoVRVD — it restores from the
+- **Screens didn't come back after a crash.** Relaunch VirtualMirage — it restores from the
   persisted snapshot on startup. The SUDOVDA watchdog also auto-removes the orphan display
   ~3s after the app stops. Worst case, unplug/replug or `Win+P` → Extend.
 - **The virtual display isn't 4K120.** Confirm SUDOVDA supports the mode and that your config
@@ -156,7 +156,7 @@ All write to `%AppData%\AutoVRVD\logs`.
 - **It skips activation saying a display is already active.** That's the Apollo/Sunshine guard
   (`SkipIfApolloActive`). Don't Moonlight-stream and VD-connect at the same time, or disable
   the guard in Settings.
-- **Windows 11 24H2 note:** legacy set-primary/disable is unreliable on this branch; AutoVRVD
+- **Windows 11 24H2 note:** legacy set-primary/disable is unreliable on this branch; VirtualMirage
   uses the CCD API specifically to work around it. If you ever see only partial switching,
   check the log and file an issue with it.
 
@@ -180,7 +180,7 @@ Then:
 .\build.ps1 -Publish   # single-folder publish to .\publish
 ```
 
-Project layout: `src/AutoVRVD/` — `Detection/`, `VirtualDisplay/` (SUDOVDA), `Display/` (CCD +
+Project layout: `src/VirtualMirage/` — `Detection/`, `VirtualDisplay/` (SUDOVDA), `Display/` (CCD +
 legacy GDI), `UI/` (tray + settings), `Orchestrator.cs`, `VirtualDisplaySession.cs`.
 
 ---

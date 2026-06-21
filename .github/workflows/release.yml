@@ -27,9 +27,9 @@ jobs:
         run: |
           $v = "${{ github.ref_name }}".TrimStart('v')
           Write-Host "Building version $v from tag ${{ github.ref_name }}"
-          dotnet publish src/AutoVRVD/AutoVRVD.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:Version=$v -o publish
+          dotnet publish src/VirtualMirage/VirtualMirage.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:Version=$v -o publish
           # Portable asset (secondary download).
-          Copy-Item publish/AutoVRVD.exe publish/AutoVRVD-win-x64.exe
+          Copy-Item publish/VirtualMirage.exe publish/VirtualMirage-win-x64.exe
           Get-ChildItem publish | Select-Object Name, Length
 
       - name: Build installer (Inno Setup)
@@ -38,9 +38,9 @@ jobs:
           $v = "${{ github.ref_name }}".TrimStart('v')
           choco install innosetup --no-progress -y
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          & $iscc /DAppVersion=$v installer\AutoVRVD.iss
+          & $iscc /DAppVersion=$v installer\VirtualMirage.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit $LASTEXITCODE" }
-          Get-ChildItem installer-out\AutoVRVD-Setup.exe | Select-Object Name, Length
+          Get-ChildItem installer-out\VirtualMirage-Setup.exe | Select-Object Name, Length
 
       - name: Create draft GitHub release
         uses: softprops/action-gh-release@v2
@@ -49,8 +49,8 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
-          # AutoVRVD-Setup.exe is the primary (matched by the updater's "Setup.exe" substring);
+          # VirtualMirage-Setup.exe is the primary (matched by the updater's "Setup.exe" substring);
           # the portable win-x64.exe is a secondary download.
           files: |
-            installer-out/AutoVRVD-Setup.exe
-            publish/AutoVRVD-win-x64.exe
+            installer-out/VirtualMirage-Setup.exe
+            publish/VirtualMirage-win-x64.exe
