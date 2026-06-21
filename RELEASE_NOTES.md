@@ -1,17 +1,17 @@
-# What's new in v0.1.2
+# What's new in v0.1.3
 
-## Faithful monitor restore (the big fix)
-- Your monitors now return to their **exact** pre-VR state on disconnect — resolution, **refresh rate**, position, and **which one is primary**.
-- Fixes the bug where refresh dropped (e.g. **360 Hz → 120 Hz**) and your **secondary monitor became primary** after exiting VR. Root cause: when other virtual-display drivers (Sunshine, Meta, Virtual Desktop's own) were active, the restore fell back to Windows' last-remembered config and lost your real settings — and it compounded each session.
-- AutoVRVD now snapshots each **physical** monitor's exact mode before switching and re-applies it explicitly on disconnect (and after a crash), independent of any other virtual displays on your system.
+## Updater fix
+- Fixes the in-app updater getting **stuck on "Downloading 100%"** instead of advancing to **"Restart to apply"**. The download now runs off the UI thread (the tray no longer freezes during the ~68 MB download), and a trailing progress update can no longer overwrite the final state.
 
-> One-time note: if your monitors are currently stuck at 120 Hz / wrong primary from the old bug, set them back to native once in Windows Display Settings — from then on AutoVRVD keeps them there.
+## Faithful monitor restore (from v0.1.2)
+- Your monitors return to their **exact** resolution/**refresh**/position/**primary** after VR — no more 360 Hz dropping to 120 Hz or your secondary becoming primary.
 
 ---
 
 # Install
 
-- **Windows (x64)**: download `AutoVRVD-win-x64.exe` and run it (self-contained — no .NET install needed). Existing users get this automatically via the tray's update check. On first launch SmartScreen may warn (unsigned): **More info → Run anyway**.
+- **Windows (x64)**: download `AutoVRVD-win-x64.exe` and run it (self-contained — no .NET install needed). On first launch SmartScreen may warn (unsigned): **More info → Run anyway**.
+- **Updating from v0.1.2 or earlier:** the old updater is broken (the bug this release fixes), so **download this exe manually once** and run it over your existing copy. After you're on v0.1.3, the in-app auto-updater works for future releases.
 
 Config and logs live in `%AppData%\AutoVRVD\`.
 
@@ -23,4 +23,4 @@ Config and logs live in `%AppData%\AutoVRVD\`.
 
 ---
 
-**Full Changelog**: https://github.com/robogears/AutomaticVRVDCreator/compare/v0.1.1...v0.1.2
+**Full Changelog**: https://github.com/robogears/AutomaticVRVDCreator/compare/v0.1.2...v0.1.3

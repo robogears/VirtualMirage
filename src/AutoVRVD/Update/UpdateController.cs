@@ -109,13 +109,17 @@ public sealed class UpdateController
 
         var progress = new Progress<(long d, long t)>(p =>
         {
+            // Ignore late progress once we've left the Downloading state — otherwise a trailing
+            // "100%" callback can overwrite the "Restart to apply" text after the download finished.
+            lock (_gate) { if (_state != St.Downloading) return; }
             string txt = p.t > 0
                 ? $"Downloading {(int)(p.d * 100 / p.t)}%"
                 : $"Downloading {p.d / 1024 / 1024} MB";
             _tray.SetUpdateMenu(txt, false);
         });
 
-        string? path = await Updater.DownloadAsync(r.DownloadUrl, progress);
+        // Run the download on a worker thread so the 68 MB transfer never freezes the UI thread.
+        string? path = await Task.Run(() => Updater.DownloadAsync(r.DownloadUrl, progress));
         lock (_gate)
         {
             if (path is null)

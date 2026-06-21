@@ -307,9 +307,11 @@ the tag (numeric semver, e.g. `0.1.10 > 0.1.2`), **searches assets for a name co
 `%TEMP%\AutoVRVD-update-{ts}.exe`; `ApplyUpdate` swaps-and-relaunches via a detached `.cmd` (retries
 `move /Y` for up to 30s, relaunches, self-deletes) and the app calls `Application.Exit()` immediately.
 `UpdateController.cs` drives the tray menu state machine; launch check is silent (`UpdateCheckOnLaunch`,
-default true — only surfaces a balloon if an update is available). The `Owner` / `Repo` /
-`AssetSubstring` constants in `Updater.cs` are hardcoded — update them if the repo is renamed or the
-asset is.
+default true — only surfaces a balloon if an update is available). The download runs on a worker
+thread (`Task.Run`) and the progress callback is **state-guarded** (ignores reports once state !=
+Downloading) so a trailing `100%` can't overwrite the final `Restart to apply` — without that, v0.1.1/
+v0.1.2 stuck on `Downloading 100%` (fixed in v0.1.3). The `Owner` / `Repo` / `AssetSubstring` constants
+in `Updater.cs` are hardcoded — update them if the repo is renamed or the asset is.
 
 **Ship process — NEVER auto-ship; only on explicit "ship it / release vX.Y.Z".** Follow `ship.md`:
 1. Bump `<Version>` in `src/AutoVRVD/AutoVRVD.csproj` (patch by default). This is the **current**
@@ -334,7 +336,10 @@ asset is.
 
 ## Status (2026-06-17)
 
-- **Shipped & published v0.1.1 then v0.1.2** on the public repo; the in-app auto-updater is live.
+- **Shipped & published v0.1.1 → v0.1.2 → v0.1.3** on the public repo. **v0.1.3 fixes the in-app
+  updater** (it stuck on "Downloading 100%" — download now on a worker thread + state-guarded progress).
+  Bootstrap caveat: the broken v0.1.1/v0.1.2 updater can't auto-fetch v0.1.3, so v0.1.3 needs a
+  **one-time manual install** (download the asset, run it over the old copy); auto-update works after.
 - **v0.1.2 — faithful monitor restore.** Physical monitors now return to their exact
   resolution/**refresh**/position/**primary** on disconnect (and crash recovery) via
   `DisplayManager.RestorePhysicalModes`: capture each physical monitor's `MonitorState`, then on
