@@ -90,20 +90,24 @@ public sealed class DisplayManager
                 if (!string.IsNullOrEmpty(gn)) { if (setPrimary) SetPrimary(gn); ok = DisableAllExcept(gn); }
             }
         }
-        else if (setPrimary)
-        {
-            CcdInterop.ExtendAllDisplays(); // ensure the virtual is active alongside the others
-            Thread.Sleep(200);
-            ok = ApplyPrimaryKeepOthers(vd);
-            if (!ok)
-            {
-                string? gn = ResolveName(vd);
-                if (!string.IsNullOrEmpty(gn)) ok = SetPrimary(gn);
-            }
-        }
         else
         {
-            ok = CcdInterop.ExtendAllDisplays(); // just make it visible
+            // Keep the other monitors on. Reliably turn the (possibly inactive) virtual display ON
+            // alongside them, then make it primary if requested. We deliberately DON'T use
+            // SDC_TOPOLOGY_EXTEND here: it replays the saved extend-topology, which — because our display
+            // has a stable GUID Windows remembers as "off" — left the virtual inactive (so it "only
+            // launched with disable-others on") and could also switch a user-disabled monitor back on.
+            ok = ActivateVirtualKeepingOthers(vd);
+            if (!ok)
+            {
+                Log.Warn("ActivateVirtualKeepingOthers (CCD) failed; falling back to SDC_TOPOLOGY_EXTEND.");
+                ok = CcdInterop.ExtendAllDisplays();
+            }
+            if (setPrimary)
+            {
+                string? gn = ResolveName(vd);
+                if (!string.IsNullOrEmpty(gn) && !SetPrimaryByGdiName(gn)) SetPrimary(gn); // legacy fallback
+            }
         }
 
         // Now that the display is active, resolve its name and enforce the exact requested mode.
@@ -159,35 +163,51 @@ public sealed class DisplayManager
         return r == CcdInterop.ERROR_SUCCESS;
     }
 
-    /// <summary>CCD: keep all displays active but shift positions so the virtual display sits at (0,0) (primary).</summary>
-    private bool ApplyPrimaryKeepOthers(VirtualDisplayHandle vd)
+    /// <summary>
+    /// Turn the virtual display ON alongside the currently-active displays — without disturbing them and
+    /// without resurrecting monitors the user had disabled. Supplies the current active config verbatim
+    /// plus the virtual target with INVALID mode indices (the OS extends it in), so it works even when the
+    /// hot-added display came up inactive — unlike SDC_TOPOLOGY_EXTEND, which replays a stale saved topology.
+    /// The virtual lives on its own (SUDOVDA) adapter, so its source can't collide with the physical paths'.
+    /// </summary>
+    private bool ActivateVirtualKeepingOthers(VirtualDisplayHandle vd)
     {
-        if (!CcdInterop.QueryActive(0, out var paths, out var modes))
+        // Already on? nothing to turn on.
+        if (!string.IsNullOrEmpty(CcdInterop.FindGdiNameForTarget(vd.AdapterLuid, vd.TargetId)))
+            return true;
+
+        if (!CcdInterop.QueryActive(0, out var active, out var modes))
         {
-            Log.Error("ApplyPrimaryKeepOthers: QueryDisplayConfig failed.");
+            Log.Error("ActivateVirtualKeepingOthers: QueryActive failed.");
+            return false;
+        }
+        if (!CcdInterop.QueryAll(out var all, out _))
+        {
+            Log.Error("ActivateVirtualKeepingOthers: QueryAll failed.");
             return false;
         }
 
-        int vp = FindVirtualPath(paths, vd);
-        if (vp < 0) { Log.Error("ApplyPrimaryKeepOthers: virtual path not found."); return false; }
+        int vp = FindVirtualPath(all, vd);
+        if (vp < 0) { Log.Error($"ActivateVirtualKeepingOthers: virtual path not found (target {vd.TargetId})."); return false; }
 
-        uint sIdx = paths[vp].sourceInfo.modeInfoIdx;
-        if (sIdx == CcdInterop.DISPLAYCONFIG_PATH_MODE_IDX_INVALID || sIdx >= modes.Length) return false;
+        var vpath = all[vp];
+        vpath.flags |= CcdInterop.DISPLAYCONFIG_PATH_ACTIVE;
+        vpath.sourceInfo.modeInfoIdx = CcdInterop.DISPLAYCONFIG_PATH_MODE_IDX_INVALID; // OS computes the virtual's mode + position
+        vpath.targetInfo.modeInfoIdx = CcdInterop.DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
 
-        int offX = modes[sIdx].mode.sourceMode.position.x;
-        int offY = modes[sIdx].mode.sourceMode.position.y;
+        // Supplied config = the existing active paths verbatim (modes preserved) + the virtual (extend it in).
+        var paths = new CcdInterop.DISPLAYCONFIG_PATH_INFO[active.Length + 1];
+        Array.Copy(active, paths, active.Length);
+        paths[active.Length] = vpath;
 
-        for (int i = 0; i < modes.Length; i++)
+        uint flags = CcdInterop.SDC_APPLY | CcdInterop.SDC_USE_SUPPLIED_DISPLAY_CONFIG | CcdInterop.SDC_ALLOW_CHANGES;
+        int r = CcdInterop.SetDisplayConfig((uint)paths.Length, paths, (uint)modes.Length, modes, flags | CcdInterop.SDC_SAVE_TO_DATABASE);
+        if (r != CcdInterop.ERROR_SUCCESS)
         {
-            if (modes[i].infoType != CcdInterop.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE) continue;
-            modes[i].mode.sourceMode.position.x -= offX;
-            modes[i].mode.sourceMode.position.y -= offY;
+            Log.Warn($"ActivateVirtualKeepingOthers: apply+save err={r}; retrying without SAVE_TO_DATABASE.");
+            r = CcdInterop.SetDisplayConfig((uint)paths.Length, paths, (uint)modes.Length, modes, flags);
         }
-
-        uint flags = CcdInterop.SDC_APPLY | CcdInterop.SDC_USE_SUPPLIED_DISPLAY_CONFIG
-                   | CcdInterop.SDC_ALLOW_CHANGES | CcdInterop.SDC_SAVE_TO_DATABASE;
-        int r = CcdInterop.SetDisplayConfig((uint)paths.Length, paths, (uint)modes.Length, modes, flags);
-        Log.Info($"ApplyPrimaryKeepOthers: SetDisplayConfig -> {r}.");
+        Log.Info($"ActivateVirtualKeepingOthers: virtual + {active.Length} active path(s), extend -> {r}.");
         return r == CcdInterop.ERROR_SUCCESS;
     }
 

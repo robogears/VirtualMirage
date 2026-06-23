@@ -121,7 +121,8 @@ src/VirtualMirage/
                              TryGetCurrentMode, ActiveMonitorCount, DescribeAll (diagnostics),
                              HasActiveDisplayMatching (contention guard).
     DisplayManager.cs        Capture (-> DisplaySnapshot? incl. per-physical-monitor EnumPhysicalMonitors()),
-                             Apply (ApplyExclusive / ApplyPrimaryKeepOthers + legacy fallback), EnforceMode
+                             Apply (disableOthers -> ApplyExclusive; keep-others -> ActivateVirtualKeepingOthers
+                             + SetPrimaryByGdiName; legacy fallback), EnforceMode
                              (SetMode then SetModeViaCcd), RestorePhysicalModes (legacy per-monitor mode +
                              SetPrimaryByGdiName via fresh CCD query), ResolveName, RestoreWithRetry ->
                              Restore (3 fallback levels), SetMode/SetPrimary/DisableAllExcept (legacy statics).
