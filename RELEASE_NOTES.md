@@ -1,14 +1,17 @@
-# What's new in v0.1.10
+# What's new in v0.1.11
 
-## Fix: works with "Disable my physical monitors" turned OFF
-- The virtual display used to activate **only** when *"Disable my physical monitors while in VR"* was on. With it **off**, the virtual display silently failed to launch — and a monitor you'd disabled could get switched back on. Now it reliably comes up **alongside** your physical monitors (and becomes primary), so you can keep an external monitor on while gaming — e.g. to show the game on it with **Win+P → Duplicate**. Monitors that were already off stay off, on both activate and restore.
+## Save & replay your display layouts (duplicate the virtual display to a monitor)
+- New buttons in **Settings** (shown when *"Disable my physical monitors"* is **off**): **Save current as Non-VR layout** and **Save current as VR layout**. Arrange your desktop exactly how you want it — for example, the virtual display **duplicated onto one monitor** with the rest off — then save it. VirtualMirage reproduces your **VR layout on connect** and restores your **Non-VR layout on disconnect**, automatically. It's fully **opt-in**: if you don't save a VR layout, nothing about today's behavior changes.
+- Why it's done this way: Windows handles the (cross-adapter) duplicate perfectly when you set it up by hand, so VirtualMirage just snapshots that exact arrangement and replays it — no fragile guessing.
+
+> Tip: set the virtual display's **Resolution** to match the monitor you're mirroring onto (e.g. **1920×1080**) so the duplicate is clean.
 
 ---
 
 # Install
 
 - **Recommended — installer:** download **`VirtualMirage-Setup.exe`** and run it — no admin, no UAC. SmartScreen may warn on the unsigned build: **More info -> Run anyway**.
-- **Portable alternative:** **`VirtualMirage-win-x64.exe`** is a self-contained single exe you can run from anywhere (no install, no auto-update).
+- **Portable alternative:** **`VirtualMirage-win-x64.exe`** is a self-contained single exe (no install, no auto-update).
 - **Updating from v0.1.8+:** tray -> **Check for updates -> Download & install** (silent, no prompts).
 
 Config and logs live in `%AppData%\VirtualMirage\`.
@@ -21,4 +24,4 @@ Config and logs live in `%AppData%\VirtualMirage\`.
 
 ---
 
-**Full Changelog**: https://github.com/robogears/VirtualMirage/compare/v0.1.9...v0.1.10
+**Full Changelog**: https://github.com/robogears/VirtualMirage/compare/v0.1.10...v0.1.11
