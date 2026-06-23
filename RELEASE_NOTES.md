@@ -1,7 +1,9 @@
-# What's new in v0.1.12
+# What's new in v0.1.13
 
-## Fix: virtual display not appearing after saving a VR layout
-- In v0.1.11, once you'd saved a VR layout, the virtual display could be **created but left inactive (invisible)** on connect. Cause: it tried to replay the exact saved topology, but the virtual display's internal ID changes every session, so the replay failed and never activated the new display. VirtualMirage now **reconstructs** your saved VR layout against the current display, so the virtual reliably appears (with a fallback to standard activation as a safety net).
+## Fix: loading a VR layout restores only the monitors you saved
+- Loading a saved VR layout was turning on **all** your monitors instead of just the ones in the layout. It now activates **exactly** the virtual display + the monitors you saved (matched by their stable hardware ID) and turns the rest off — so a layout of "monitor 3 + the virtual display" comes back as just those two.
+
+> Note: monitors in a saved VR layout currently come back **extended**. Auto-mirroring (duplicating the virtual onto a monitor) is still in progress; for now you can Win+P → Duplicate once it's loaded.
 
 ---
 
@@ -21,4 +23,4 @@ Config and logs live in `%AppData%\VirtualMirage\`.
 
 ---
 
-**Full Changelog**: https://github.com/robogears/VirtualMirage/compare/v0.1.11...v0.1.12
+**Full Changelog**: https://github.com/robogears/VirtualMirage/compare/v0.1.12...v0.1.13

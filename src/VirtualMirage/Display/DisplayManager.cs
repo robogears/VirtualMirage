@@ -121,11 +121,12 @@ public sealed class DisplayManager
         }
         else
         {
-            ok = ActivateVirtualKeepingOthers(vd);
+            // Activate EXACTLY the saved monitors + the virtual (others off), then restore their modes.
+            ok = ActivateVirtualWithMonitors(vd, snap.Monitors);
             Thread.Sleep(200);
             RestorePhysicalModes(snap);
             string? vn = ResolveName(vd);
-            if (!string.IsNullOrEmpty(vn)) SetPrimaryByGdiName(vn); // a VR layout makes the virtual primary
+            if (!string.IsNullOrEmpty(vn) && SavedPrimaryIsVirtual(snap)) SetPrimaryByGdiName(vn);
         }
 
         string? name = ResolveName(vd);
@@ -133,6 +134,11 @@ public sealed class DisplayManager
         Log.Info($"ApplyVrLayout: done (ok={ok}, virtual={(active ? name : "INACTIVE")}). Topology now:\n{GdiInterop.DescribeAll()}");
         return ok && active;
     }
+
+    /// <summary>True if the saved layout's primary was the virtual display (i.e. not one of its physical monitors).</summary>
+    private static bool SavedPrimaryIsVirtual(DisplaySnapshot snap)
+        => string.IsNullOrEmpty(snap.PrimaryGdiName)
+           || !snap.Monitors.Any(m => string.Equals(m.GdiName, snap.PrimaryGdiName, StringComparison.OrdinalIgnoreCase));
 
     // ---- Apply (make the virtual display the show) ----
 
@@ -275,6 +281,59 @@ public sealed class DisplayManager
         }
         Log.Info($"ActivateVirtualKeepingOthers: virtual + {active.Length} active path(s), extend -> {r}.");
         return r == CcdInterop.ERROR_SUCCESS;
+    }
+
+    /// <summary>
+    /// Activate EXACTLY the virtual display + the given physical monitors (matched by stable device path),
+    /// turning OFF every other physical monitor. Like ApplyExclusive but keeping a chosen set alongside the
+    /// virtual — this is what makes a saved VR layout come back as "just monitors 3 + 4" instead of all of
+    /// them. Supplies only those targets with INVALID mode indices; everything not supplied drops to off.
+    /// </summary>
+    private bool ActivateVirtualWithMonitors(VirtualDisplayHandle vd, List<MonitorState> keep)
+    {
+        if (!CcdInterop.QueryAll(out var all, out _)) { Log.Error("ActivateVirtualWithMonitors: QueryAll failed."); return false; }
+
+        var keepPaths = new HashSet<string>(
+            keep.Select(m => m.DevicePath).Where(s => !string.IsNullOrEmpty(s)), StringComparer.OrdinalIgnoreCase);
+
+        var supplied = new List<CcdInterop.DISPLAYCONFIG_PATH_INFO>();
+        int vp = FindVirtualPath(all, vd);
+        if (vp >= 0) supplied.Add(MakeActiveInvalid(all[vp]));
+        else Log.Warn($"ActivateVirtualWithMonitors: virtual path not found (target {vd.TargetId}).");
+
+        int matched = 0;
+        var addedDevices = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < all.Length && keepPaths.Count > 0; i++)
+        {
+            if (i == vp) continue;
+            var (devPath, _) = CcdInterop.GetTargetDeviceName(all[i].targetInfo.adapterId, all[i].targetInfo.id);
+            if (string.IsNullOrEmpty(devPath) || !keepPaths.Contains(devPath) || !addedDevices.Add(devPath)) continue;
+            supplied.Add(MakeActiveInvalid(all[i]));
+            matched++;
+        }
+
+        if (supplied.Count == 0) { Log.Error("ActivateVirtualWithMonitors: nothing to activate."); return false; }
+        if (matched < keepPaths.Count)
+            Log.Warn($"ActivateVirtualWithMonitors: only matched {matched}/{keepPaths.Count} saved monitor(s) by device path.");
+
+        var paths = supplied.ToArray();
+        uint flags = CcdInterop.SDC_APPLY | CcdInterop.SDC_USE_SUPPLIED_DISPLAY_CONFIG | CcdInterop.SDC_ALLOW_CHANGES;
+        int r = CcdInterop.SetDisplayConfig((uint)paths.Length, paths, 0, null, flags | CcdInterop.SDC_SAVE_TO_DATABASE);
+        if (r != CcdInterop.ERROR_SUCCESS)
+        {
+            Log.Warn($"ActivateVirtualWithMonitors: apply+save err={r}; retrying without SAVE_TO_DATABASE.");
+            r = CcdInterop.SetDisplayConfig((uint)paths.Length, paths, 0, null, flags);
+        }
+        Log.Info($"ActivateVirtualWithMonitors: virtual + {matched} saved monitor(s) active, others off -> {r}.");
+        return r == CcdInterop.ERROR_SUCCESS;
+    }
+
+    private static CcdInterop.DISPLAYCONFIG_PATH_INFO MakeActiveInvalid(CcdInterop.DISPLAYCONFIG_PATH_INFO p)
+    {
+        p.flags |= CcdInterop.DISPLAYCONFIG_PATH_ACTIVE;
+        p.sourceInfo.modeInfoIdx = CcdInterop.DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
+        p.targetInfo.modeInfoIdx = CcdInterop.DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
+        return p;
     }
 
     private static int FindVirtualPath(CcdInterop.DISPLAYCONFIG_PATH_INFO[] paths, VirtualDisplayHandle vd)
