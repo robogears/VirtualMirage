@@ -560,6 +560,45 @@ public sealed class DisplayManager
         return list;
     }
 
+    /// <summary>
+    /// Detect duplicated (cloned) monitors. In the CCD API a duplicate shows up as two+ ACTIVE paths that
+    /// share one source (same source adapterId+id) and/or the same cloneGroupId (the low bits of the
+    /// source modeInfoIdx union when queried virtual-mode-aware). Extended monitors each get their own
+    /// source. Returns a human-readable dump (also used to learn how a cross-adapter virtual↔GPU clone
+    /// is represented).
+    /// </summary>
+    public static string DescribeCloneGroups()
+    {
+        if (!CcdInterop.QueryActive(CcdInterop.QDC_VIRTUAL_MODE_AWARE, out var paths, out _)
+            && !CcdInterop.QueryActive(0, out paths, out _))
+            return "  (QueryDisplayConfig failed)";
+
+        var perSource = new Dictionary<long, int>();
+        foreach (var p in paths)
+        {
+            if ((p.flags & CcdInterop.DISPLAYCONFIG_PATH_ACTIVE) == 0) continue;
+            long sk = p.sourceInfo.adapterId.ToInt64() * 1000003 + p.sourceInfo.id;
+            perSource[sk] = perSource.TryGetValue(sk, out var c) ? c + 1 : 1;
+        }
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(perSource.Values.Any(v => v > 1)
+            ? "DUPLICATE/CLONE DETECTED — a source is driving 2+ monitors:"
+            : "No duplicate detected — each active monitor has its own source:");
+        foreach (var p in paths)
+        {
+            if ((p.flags & CcdInterop.DISPLAYCONFIG_PATH_ACTIVE) == 0) continue;
+            string src = CcdInterop.GetSourceGdiName(p.sourceInfo.adapterId, p.sourceInfo.id) ?? "?";
+            string tgt = CcdInterop.GetTargetFriendlyName(p.targetInfo.adapterId, p.targetInfo.id) ?? "?";
+            long sk = p.sourceInfo.adapterId.ToInt64() * 1000003 + p.sourceInfo.id;
+            bool shared = perSource[sk] > 1;
+            sb.AppendLine($"  {src} [srcAdp {p.sourceInfo.adapterId.ToInt64():X}/{p.sourceInfo.id}] -> {tgt} " +
+                          $"[tgtAdp {p.targetInfo.adapterId.ToInt64():X}/{p.targetInfo.id}] srcModeIdx=0x{p.sourceInfo.modeInfoIdx:X8}" +
+                          (shared ? "   <== shares source (CLONE)" : ""));
+        }
+        return sb.ToString();
+    }
+
     private static void ForEachActiveDevice(Action<string> action)
         => ForEachDevice((name, flags) => { if ((flags & GdiInterop.DISPLAY_DEVICE_ACTIVE) != 0) action(name); });
 

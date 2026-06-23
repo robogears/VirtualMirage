@@ -41,6 +41,16 @@ internal static class Program
             Log.Info($"Diagnostics report written to: {report}");
             return;
         }
+        // Read-only: dump active display paths grouped by source so we can see whether monitors are
+        // duplicated (cloned) and exactly how a cross-adapter virtual<->GPU clone is represented.
+        if (args.Length > 0 && args[0].Equals("--diag-clone", StringComparison.OrdinalIgnoreCase))
+        {
+            Log.Init();
+            Log.Info("==== CLONE DIAGNOSTIC (read-only) ====");
+            Log.Info("Clone groups:\n" + DisplayManager.DescribeCloneGroups());
+            Log.Info("Full topology:\n" + GdiInterop.DescribeAll());
+            return;
+        }
         if (args.Length > 0 && args[0].Equals("--selftest-settings", StringComparison.OrdinalIgnoreCase))
         {
             Log.Init();
